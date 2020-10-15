@@ -53,19 +53,19 @@ def updateCells(cells: np.ndarray, neighborhood: str = 'neumann') -> np.ndarray:
     :return: Матрица с новыми значениями в клетках.
     """
     neighborhood = neighborhood.lower()
-    buf = cells.copy()
+    newCells = cells.copy()
 
     for i in range(1, cells.shape[0] - 1):
         for j in range(1, cells.shape[1] - 1):
             na, nb = calcAB(cells, i, j, neighborhood)
             if na > nb:
-                buf[i, j] = 2
+                newCells[i, j] = 2
             elif na < nb:
-                buf[i, j] = 3
+                newCells[i, j] = 3
             else:
-                buf[i, j] = cells[i, j]
+                newCells[i, j] = cells[i, j]
 
-    return buf
+    return newCells
 
 
 def calcAB(cells: np.ndarray, i: int, j: int, neighborhood) -> Tuple[int, int]:
