@@ -2,17 +2,18 @@ from typing import Tuple
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import numpy as np
+import random
 
 
 def main():
     n = 150                                     # Размер поля клеток
-    iters = 75                                  # Кол-во итераций "эволюции" клеточного автомата
+    iters = 150                                 # Кол-во итераций "эволюции" клеточного автомата
     cells = initialize(n+2, variant=1)          # Поле клеток
 
     # Обновление (эволюция) состояния клеточного автомата
     results = []
     for _ in range(iters):
-        cells = updateCells(cells, neighborhood='neumann')
+        cells = updateCells(cells, neighborhood='mur')
         results.append(cells[1:-2, 1:-2])       # Не записываются добавленные граничные строки и столбцы
 
     # Запись накопленных данных
@@ -58,14 +59,23 @@ def updateCells(cells: np.ndarray, neighborhood: str = 'neumann') -> np.ndarray:
     for i in range(1, cells.shape[0] - 1):
         for j in range(1, cells.shape[1] - 1):
             na, nb = calcAB(cells, i, j, neighborhood)
+            if na + nb > 0:
+                pa, pb = winWithProbability(na / (na + nb)), winWithProbability(nb / (na + nb))
+            else:
+                pa, pb = False, False
+
             if na > nb and cells[i, j] == 3:
-                newCells[i, j] = 1
+                if (na + nb != 0) and pa:
+                    newCells[i, j] = 1
             elif na > nb and cells[i, j] == 1:
-                newCells[i, j] = 2
+                if (na + nb != 0) and pa:
+                    newCells[i, j] = 2
             elif na < nb and cells[i, j] == 2:
-                newCells[i, j] = 1
+                if (na + nb != 0) and pb:
+                    newCells[i, j] = 1
             elif na < nb and cells[i, j] == 1:
-                newCells[i, j] = 3
+                if (na + nb != 0) and pb:
+                    newCells[i, j] = 3
             else:
                 newCells[i, j] = cells[i, j]
 
@@ -89,6 +99,12 @@ def calcAB(cells: np.ndarray, i: int, j: int, neighborhood) -> Tuple[int, int]:
         subcells = None
     return len([x for x in subcells if x == 2]), \
            len([x for x in subcells if x == 3])
+
+
+def winWithProbability(p: float) -> bool:
+    if 0 <= p <= 1:
+        return random.random() <= p
+    return True
 
 
 def show(datafile, iters: int):
