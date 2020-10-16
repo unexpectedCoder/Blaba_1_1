@@ -7,7 +7,7 @@ import numpy as np
 def main():
     n = 150                                     # Размер поля клеток
     iters = 75                                  # Кол-во итераций "эволюции" клеточного автомата
-    cells = initialize(n+2, variant=2)          # Поле клеток
+    cells = initialize(n+2, variant=1)          # Поле клеток
 
     # Обновление (эволюция) состояния клеточного автомата
     results = []
@@ -58,9 +58,13 @@ def updateCells(cells: np.ndarray, neighborhood: str = 'neumann') -> np.ndarray:
     for i in range(1, cells.shape[0] - 1):
         for j in range(1, cells.shape[1] - 1):
             na, nb = calcAB(cells, i, j, neighborhood)
-            if na > nb:
+            if na > nb and cells[i, j] == 3:
+                newCells[i, j] = 1
+            elif na > nb and cells[i, j] == 1:
                 newCells[i, j] = 2
-            elif na < nb:
+            elif na < nb and cells[i, j] == 2:
+                newCells[i, j] = 1
+            elif na < nb and cells[i, j] == 1:
                 newCells[i, j] = 3
             else:
                 newCells[i, j] = cells[i, j]
