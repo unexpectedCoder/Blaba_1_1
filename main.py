@@ -1,27 +1,39 @@
 from typing import Tuple
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 import numpy as np
 import random
+import os
+
+import visualizer as vis
 
 
 def main():
     n = 150                                     # Размер поля клеток
-    iters = 150                                 # Кол-во итераций "эволюции" клеточного автомата
+    iters = 200                                 # Кол-во итераций "эволюции" клеточного автомата
     cells = initialize(n+2, variant=1)          # Поле клеток
-
-    # Обновление (эволюция) состояния клеточного автомата
-    results = []
-    for _ in range(iters):
-        cells = updateCells(cells, neighborhood='mur')
-        results.append(cells[1:-2, 1:-2])       # Не записываются добавленные граничные строки и столбцы
-
-    # Запись накопленных данных
     datafile = 'data.npz'
-    np.savez(datafile, *np.array(results))
 
-    # Вывод с анимацией
-    show(datafile, iters)
+    if os.path.isfile('data.npz'):
+        choice = input("Выполнить моделирование (1) или показать только анимацию (2): ")
+
+        if choice == '1':
+            results = []
+
+            for _ in range(iters):
+                cells = updateCells(cells, neighborhood='moore')
+                results.append(cells[1:-2, 1:-2])  # Не записываются добавленные граничные строки и столбцы
+
+            np.savez(datafile, *np.array(results))
+            show(datafile)
+        else:
+            show(datafile)
+    else:
+        results = []
+        for _ in range(iters):
+            cells = updateCells(cells, neighborhood='moore')
+            results.append(cells[1:-2, 1:-2])  # Не записываются добавленные граничные строки и столбцы
+
+        np.savez(datafile, *np.array(results))
+        show(datafile)
 
     return 0
 
@@ -35,10 +47,6 @@ def initialize(n: int, variant: int = 1) -> np.ndarray:
     """
     if variant == 1:
         cells = np.random.randint(1, 4, (n, n))
-        cells[0, :] = 1
-        cells[-1, :] = 1
-        cells[:, 0] = 1
-        cells[:, -1] = 1
         return cells
     if variant == 2:
         cells = np.random.randint(1, 4, (n, n))
@@ -64,17 +72,17 @@ def updateCells(cells: np.ndarray, neighborhood: str = 'neumann') -> np.ndarray:
             else:
                 pa, pb = False, False
 
-            if na > nb and cells[i, j] == 3:
-                if (na + nb != 0) and pa:
+            if na >= nb and cells[i, j] == 3:
+                if pa:
                     newCells[i, j] = 1
             elif na > nb and cells[i, j] == 1:
-                if (na + nb != 0) and pa:
+                if pa:
                     newCells[i, j] = 2
-            elif na < nb and cells[i, j] == 2:
-                if (na + nb != 0) and pb:
+            elif na <= nb and cells[i, j] == 2:
+                if pb:
                     newCells[i, j] = 1
             elif na < nb and cells[i, j] == 1:
-                if (na + nb != 0) and pb:
+                if pb:
                     newCells[i, j] = 3
             else:
                 newCells[i, j] = cells[i, j]
@@ -93,12 +101,12 @@ def calcAB(cells: np.ndarray, i: int, j: int, neighborhood) -> Tuple[int, int]:
     """
     if neighborhood == 'neumann':
         subcells = np.array([*cells[i-1:i+1, j], cells[i, j-1], cells[i, j+1]])
-    elif neighborhood == 'mur':
+    elif neighborhood == 'moore':
         subcells = cells[i-1:i+2, j-1:j+2].ravel()
     else:
         subcells = None
-    return len([x for x in subcells if x == 2]), \
-           len([x for x in subcells if x == 3])
+    return int(np.sum(subcells == 2)), \
+           int(np.sum(subcells == 3))
 
 
 def winWithProbability(p: float) -> bool:
@@ -107,27 +115,12 @@ def winWithProbability(p: float) -> bool:
     return True
 
 
-def show(datafile, iters: int):
-    """Показать анимацию эволюции клеточного автомата.
-
-    :param datafile: имя файла с данными numpy.
-    :param iters: количество проведенных итераций эволюции клеточного автомата (кол-во матриц в файле).
-    """
+def show(datafile: str):
     data = np.load(datafile)
-    fig = plt.figure(figsize=(8, 8))
-    ax = fig.add_subplot(1, 1, 1)
-    ani = animation.FuncAnimation(fig, animate, fargs=(ax, data, iters), interval=250)
-    plt.show()
+    dataList = [d for d in data.values()]
 
-
-def animate(i, ax, data, iters: int):
-    """Функция анимации."""
-    if i < iters:
-        ax.clear()
-        d = data[f'arr_{i}']        # arr_0, arr_1 и т.д. - это ключи по-умолчанию для numpy.savez()
-        ax.matshow(d, cmap='jet')
-    else:
-        print("Усё")
+    v = vis.Visualizer()
+    v.show(dataList, len(dataList))
 
 
 if __name__ == '__main__':
