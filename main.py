@@ -7,30 +7,37 @@ import visualizer as vis
 
 
 def main():
-    n = 150                                     # Размер поля клеток
-    iters = 200                                 # Кол-во итераций "эволюции" клеточного автомата
-    cells = initialize(n+2, variant=1)          # Поле клеток
+    fieldSize = 100                              # Размер поля клеток
+    iters = 150                                  # Кол-во итераций "эволюции" клеточного автомата
+    nAgents = 1000                               # Число агентов с каждой стороны
     datafile = 'data.npz'
 
     if os.path.isfile('data.npz'):
         choice = input("Выполнить моделирование (1) или показать только анимацию (2): ")
 
         if choice == '1':
-            results = []
+            cells = initialize(nAgents, fieldSize + 2)
+            results = [cells[1:-1, 1:-1]]
 
             for _ in range(iters):
                 cells = updateCells(cells, neighborhood='moore')
-                results.append(cells[1:-2, 1:-2])  # Не записываются добавленные граничные строки и столбцы
+                results.append(cells[1:-1, 1:-1])
+                if 1 not in cells.ravel():
+                    break
 
             np.savez(datafile, *np.array(results))
             show(datafile)
         else:
             show(datafile)
     else:
-        results = []
+        cells = initialize(nAgents, fieldSize + 2)
+        results = [cells[1:-1, 1:-1]]
+
         for _ in range(iters):
             cells = updateCells(cells, neighborhood='moore')
-            results.append(cells[1:-2, 1:-2])  # Не записываются добавленные граничные строки и столбцы
+            results.append(cells[1:-1, 1:-1])
+            if 1 not in cells.ravel():
+                break
 
         np.savez(datafile, *np.array(results))
         show(datafile)
@@ -38,20 +45,23 @@ def main():
     return 0
 
 
-def initialize(n: int, variant: int = 1) -> np.ndarray:
+def initialize(n_agents: int, field_size: int) -> np.ndarray:
     """Инициализирует начальное состояние клеточного автомата.
 
-    :param n: размер матрицы (квадратной).
-    :param variant: номер варианта начального состояния.
+    :param n_agents: кол-во агентов с каждой стороны.
+    :param field_size: размер матрицы (квадратной).
     :return: Инициализированный клеточный автомат (его начальное состояние).
     """
-    if variant == 1:
-        cells = np.random.randint(1, 4, (n, n))
-        return cells
-    if variant == 2:
-        cells = np.random.randint(1, 4, (n, n))
-        cells[n//2 - n//4: n//2 + n//4 + 1, n//2 - n//4: n//2 + n//4 + 1] = 1
-        return cells
+    inds = np.array([[i, j] for i in range(1, field_size-1) for j in range(1, field_size-1)])
+    np.random.shuffle(inds)
+    aind, bind = inds[:n_agents], inds[n_agents:2*n_agents]
+
+    cells = np.ones((field_size, field_size))
+    for a, b in zip(aind, bind):
+        cells[a[0], a[1]] = 2   # A
+        cells[b[0], b[1]] = 3   # B
+
+    return cells
 
 
 def updateCells(cells: np.ndarray, neighborhood: str = 'neumann') -> np.ndarray:
@@ -67,25 +77,23 @@ def updateCells(cells: np.ndarray, neighborhood: str = 'neumann') -> np.ndarray:
     for i in range(1, cells.shape[0] - 1):
         for j in range(1, cells.shape[1] - 1):
             na, nb = calcAB(cells, i, j, neighborhood)
-            if na + nb > 0:
-                pa, pb = winWithProbability(na / (na + nb)), winWithProbability(nb / (na + nb))
-            else:
-                pa, pb = False, False
 
-            if na >= nb and cells[i, j] == 3:
-                if pa:
+            if isForcesEqual(na, nb):
+                if newCells[i, j] == 1:
+                    newCells[i, j] = 2 if random.choice((True, False)) else 3
+                elif random.choice((True, False)):
                     newCells[i, j] = 1
-            elif na > nb and cells[i, j] == 1:
-                if pa:
-                    newCells[i, j] = 2
-            elif na <= nb and cells[i, j] == 2:
-                if pb:
-                    newCells[i, j] = 1
-            elif na < nb and cells[i, j] == 1:
-                if pb:
-                    newCells[i, j] = 3
             else:
-                newCells[i, j] = cells[i, j]
+                if na > nb and cells[i, j] == 3:
+                    newCells[i, j] = 1
+                elif na > nb and cells[i, j] == 1:
+                    newCells[i, j] = 2
+                elif na < nb and cells[i, j] == 2:
+                    newCells[i, j] = 1
+                elif na < nb and cells[i, j] == 1:
+                    newCells[i, j] = 3
+                else:
+                    newCells[i, j] = cells[i, j]
 
     return newCells
 
@@ -109,10 +117,10 @@ def calcAB(cells: np.ndarray, i: int, j: int, neighborhood) -> Tuple[int, int]:
            int(np.sum(subcells == 3))
 
 
-def winWithProbability(p: float) -> bool:
-    if 0 <= p <= 1:
-        return random.random() <= p
-    return True
+def isForcesEqual(na: int, nb: int) -> bool:
+    if na != 0 and na == nb:
+        return True
+    return False
 
 
 def show(datafile: str):
