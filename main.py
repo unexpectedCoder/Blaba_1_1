@@ -8,38 +8,61 @@ import visualizer as vis
 
 def main():
     fieldSize = 100                              # Размер поля клеток
-    iters = 150                                  # Кол-во итераций "эволюции" клеточного автомата
+    iters = 0                                    # Кол-во итераций "эволюции" клеточного автомата
     nAgents = 1000                               # Число агентов с каждой стороны
     datafile = 'data.npz'
+    neighborhood = 'neumann'
 
     if os.path.isfile('data.npz'):
         choice = input("Выполнить моделирование (1) или показать только анимацию (2): ")
 
         if choice == '1':
+            print("Инициализация...")
             cells = initialize(nAgents, fieldSize + 2)
             results = [cells[1:-1, 1:-1]]
 
-            for _ in range(iters):
-                cells = updateCells(cells, neighborhood='moore')
-                results.append(cells[1:-1, 1:-1])
-                if 1 not in cells.ravel():
-                    break
+            print("Моделирование...")
+            if iters > 0:
+                for _ in range(iters):
+                    cells = updateCells(cells, neighborhood=neighborhood)
+                    results.append(cells[1:-1, 1:-1])
+                    if not np.any(cells[1:-1, 1:-1] == 1):
+                        break
+            else:
+                while True:
+                    cells = updateCells(cells, neighborhood=neighborhood)
+                    results.append(cells[1:-1, 1:-1])
+                    if not np.any(cells[1:-1, 1:-1] == 1):
+                        break
 
+            print("Сохранение результатов...")
             np.savez(datafile, *np.array(results))
+
             show(datafile)
         else:
             show(datafile)
     else:
+        print("Инициализация...")
         cells = initialize(nAgents, fieldSize + 2)
         results = [cells[1:-1, 1:-1]]
 
-        for _ in range(iters):
-            cells = updateCells(cells, neighborhood='moore')
-            results.append(cells[1:-1, 1:-1])
-            if 1 not in cells.ravel():
-                break
+        print("Моделирование...")
+        if iters > 0:
+            for _ in range(iters):
+                cells = updateCells(cells, neighborhood=neighborhood)
+                results.append(cells[1:-1, 1:-1])
+                if not np.any(cells == 1):
+                    break
+        else:
+            while True:
+                cells = updateCells(cells, neighborhood='moore')
+                results.append(cells[1:-1, 1:-1])
+                if not np.any(cells[1:-1, 1:-1] == 1):
+                    break
 
+        print("Сохранение результатов...")
         np.savez(datafile, *np.array(results))
+
         show(datafile)
 
     return 0
